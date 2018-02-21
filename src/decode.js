@@ -5,7 +5,7 @@ export async function decode (buffer) {
 	const props = reader.Read16();
 	const end = reader.Read16();
 	
-	if (str != "JSOF || end != 0x0D0A)
+	if (str != "JSOF" || end != 0x0D0A)
 		throw new Error("Invalid header");
 	
 	return parseToken(reader);	
