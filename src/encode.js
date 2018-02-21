@@ -94,22 +94,46 @@ function serializeToken (token, writer) {
 			}
 			break;
 		case TYPE_UINT8_ARRAY:
+		case TYPE_INT8_ARRAY:
+		case TYPE_CLAMPED_UINT8_ARRAY:
+		case TYPE_INT16_ARRAY:
+		case TYPE_UINT16_ARRAY:
+		case TYPE_INT32_ARRAY:
+		case TYPE_UINT32_ARRAY:
+		case TYPE_FLOAT32_ARRAY:
+		case TYPE_FLOAT64_ARRAY:
+		case TYPE_DATAVIEW:
 			writer.WriteV(token.length);
-			writer.WriteBytes(token.data);
+			writer.WriteV(token.data[1]);
+			writer.WriteV(token.data[2]);
+			serializeToken(token.data[0], writer);
+			break;
+		case TYPE_ARRAYBUFFER:
+			writer.WriteV(token.length);
+			writer.WriteBytes(new Uint8Array(token.data));
 			break;
 		case TYPE_FILE:
 			writer.WriteV(token.length);
-			// TODO include blob meta data
-			writer.WriteBlob(token.data);
-			//these types require length and data
+			writer.WriteV(token.data[0].length);
+			writer.WriteText(token.data[0]);
+			writer.WriteV(token.data[1].length);
+			writer.WriteText(token.data[1]);
+			writer.WriteV(token.data[2]);
+			writer.WriteBytes(await ReadBlob(token.data[3]));
 			break;
 		case TYPE_BLOB:
 			writer.WriteV(token.length);
-			// TODO include blob meta data
-			writer.WriteBlob(token.data);
-			//these types require length and data
+			writer.WriteV(token.data[0].length);
+			writer.WriteText(token.data[0]);
+			writer.WriteBytes(await ReadBlob(token.data[1]));
 			break;
-
+		case TYPE_IMAGE_DATA:
+		case TYPE_IMAGE_BITMAP:
+			writer.WriteV(token.length);
+			writer.WriteV(token.data.width);
+			writer.WriteV(token.data.height);
+			writer.WriteBytes(token.data.data);
+			break;
 		case TYPE_FLOAT_64:
 		case TYPE_DATE:
 			writer.Write64(token.data);
@@ -188,37 +212,46 @@ function createToken(type, length, data) {
 }
 
 function tokenizeTypedArray(obj) {
+	
+	const { buffer, byteLength, byteOffset } = obj;
+	const ref = object_set.add(buffer);
 
+	if (!ref)
+		ref = createToken(TYPE_ARRAYBUFFER, buffer.byteLength, buffer);
+	
+	const contents = [ref, byteLength, byteOffset];
+	const length = tokenSize(ref) + vIntLength(byteLength) + vIntLength(byteOffset);
+	
 	// should deduplicate the underlying array buffer here, could be very useful
 	if (obj instanceof DataView) {
-		return createToken(TYPE_DATAVIEW, obj.byteLength, obj);
+		return createToken(TYPE_DATAVIEW, length, contents);
 	}
 	else if (obj instanceof Uint8Array) {
-		return createToken(TYPE_UINT8_ARRAY, obj.byteLength, obj);
+		return createToken(TYPE_UINT8_ARRAY, length, contents);
 	}
 	else if (obj instanceof Int8Array) {
-		return createToken(TYPE_INT8_ARRAY, obj.byteLength, obj);
+		return createToken(TYPE_INT8_ARRAY, length, contents);
 	}
 	else if (obj instanceof Uint8ClampedArray) {
-		return createToken(TYPE_CLAMPED_UINT8_ARRAY, obj.byteLength, obj);
+		return createToken(TYPE_CLAMPED_UINT8_ARRAY, length, contents);
 	}
 	else if (obj instanceof Uint16Array) {
-		return createToken(TYPE_UINT16_ARRAY, obj.byteLength, obj);
+		return createToken(TYPE_UINT16_ARRAY, length, contents);
 	}
 	else if (obj instanceof Int16Array) {
-		return createToken(TYPE_INT16_ARRAY, obj.byteLength, obj);
+		return createToken(TYPE_INT16_ARRAY, length, contents);
 	}
 	else if (obj instanceof Uint32Array) {
-		return createToken(TYPE_UINT32_ARRAY, obj.byteLength, obj);
+		return createToken(TYPE_UINT32_ARRAY, length, contents);
 	}
 	else if (obj instanceof Int32Array) {
-		return createToken(TYPE_INT32_ARRAY, obj.byteLength, obj);
+		return createToken(TYPE_INT32_ARRAY, length, contents);
 	}
 	else if (obj instanceof Float32Array) {
-		return createToken(TYPE_FLOAT32_ARRAY, obj.byteLength, obj);
+		return createToken(TYPE_FLOAT32_ARRAY, length, contents);
 	}
 	else if (obj instanceof Float64Array) {
-		return createToken(TYPE_FLOAT64_ARRAY, obj.byteLength, obj);
+		return createToken(TYPE_FLOAT64_ARRAY, length, contents);
 	}
 }
 
