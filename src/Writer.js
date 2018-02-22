@@ -80,7 +80,7 @@ export class Writer {
 		if (this.available < 1)
 			throw new Error("Not enough buffer space available");
 
-		this.allocation.setUint8(this.position, v);
+		this.view.setUint8(this.position, v);
 		this.position += 1;
 	}
 
@@ -89,7 +89,7 @@ export class Writer {
 		if (this.available < 2)
 			throw new Error("Not enough buffer space available");
 
-		this.allocation.setUint16(this.position, v);
+		this.view.setUint16(this.position, v);
 		this.position += 2;
 	}
 
@@ -98,7 +98,7 @@ export class Writer {
 		if (this.available < 4)
 			throw new Error("Not enough buffer space available");
 
-		this.allocation.setUint32(this.position, v);
+		this.view.setUint32(this.position, v);
 		this.position += 4;
 	}
 
@@ -122,7 +122,7 @@ export class Writer {
 		if (this.available < 8)
 			throw new Error("Not enough buffer space available");
 
-		this.allocation.setFloat64(this.position, v);
+		this.view.setFloat64(this.position, v);
 		this.position += 8;
 	}
 }
