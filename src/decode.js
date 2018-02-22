@@ -1,3 +1,6 @@
+import * as TYPE from "./types.js";
+import { Reader } from "./Reader.js";
+
 export async function decode (buffer) {
 	const reader = new Reader(buffer);
 
@@ -21,73 +24,73 @@ function parseToken (reader) {
 	const l = type < 9 ? reader.ReadV() : 0;
 
 	switch (type) {
-		case TYPE_NULL:
+		case TYPE.NULL:
 			return null;
-		case TYPE_UNDEFINED:
+		case TYPE.UNDEFINED:
 			return undefined;
-		case TYPE_BOOLEAN_TRUE:
+		case TYPE.BOOLEAN_TRUE:
 			return true;
-		case TYPE_BOOLEAN_FALSE:
+		case TYPE.BOOLEAN_FALSE:
 			return false;
 			break;
-		case TYPE_STRING:
+		case TYPE.STRING:
 			return reader.ReadText(l);
 			break;
-		case TYPE_REGEXP:
+		case TYPE.REGEXP:
 			return new RegExp(reader.ReadText(l));
 			break;
-		case TYPE_SET:
+		case TYPE.SET:
 			return skip(l, reader);
 			break;
-		case TYPE_GENERIC_ARRAY:
+		case TYPE.GENERIC_ARRAY:
 			return skip(l, reader);
 			break;
-		case TYPE_GENERIC_OBJECT:
+		case TYPE.GENERIC_OBJECT:
 			return skip(l, reader);
 			break;
-		case TYPE_MAP:
+		case TYPE.MAP:
 			return skip(l, reader);
 			break;
-		case TYPE_UINT8_ARRAY:
-		case TYPE_INT8_ARRAY:
-		case TYPE_CLAMPED_UINT8_ARRAY:
-		case TYPE_INT16_ARRAY:
-		case TYPE_UINT16_ARRAY:
-		case TYPE_INT32_ARRAY:
-		case TYPE_UINT32_ARRAY:
-		case TYPE_FLOAT32_ARRAY:
-		case TYPE_FLOAT64_ARRAY:
-		case TYPE_DATAVIEW:
+		case TYPE.UINT8_ARRAY:
+		case TYPE.INT8_ARRAY:
+		case TYPE.CLAMPED_UINT8_ARRAY:
+		case TYPE.INT16_ARRAY:
+		case TYPE.UINT16_ARRAY:
+		case TYPE.INT32_ARRAY:
+		case TYPE.UINT32_ARRAY:
+		case TYPE.FLOAT32_ARRAY:
+		case TYPE.FLOAT64_ARRAY:
+		case TYPE.DATAVIEW:
 			return skip(l, reader);
 			break;
-		case TYPE_ARRAYBUFFER:
+		case TYPE.ARRAYBUFFER:
 			return skip(l, reader);
 			break;
-		case TYPE_FILE:
+		case TYPE.FILE:
 			return skip(l, reader);
 			break;
-		case TYPE_BLOB:
+		case TYPE.BLOB:
 			return skip(l, reader);
 			break;
-		case TYPE_IMAGE_DATA:
+		case TYPE.IMAGE_DATA:
 			return skip(l, reader);
 			break;
-		case TYPE_IMAGE_BITMAP:
+		case TYPE.IMAGE_BITMAP:
 			return skip(l, reader);
 			break;
-		case TYPE_FLOAT_64:
+		case TYPE.FLOAT_64:
 			return reader.ReadFloat();
 			break;
-		case TYPE_DATE:
+		case TYPE.DATE:
 			return new Date(reader.ReadFloat());
 			break;
-		case TYPE_VINT_POS:
+		case TYPE.VINT_POS:
 			return reader.ReadV();
 			break;
-		case TYPE_VINT_NEG:
+		case TYPE.VINT_NEG:
 			return -reader.ReadV();
 			break;
-		case TYPE_REFERENCE:
+		case TYPE.REFERENCE:
 			return skip(reader);
 			break;
 	}
