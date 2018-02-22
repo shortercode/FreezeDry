@@ -1,7 +1,30 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<script type="module" src="index.js"></script>
+		<script type="module">
+			import { encode, decode } from "../src/index.js";
+
+			async function test (n) {
+				console.log("Input", n);
+				const e = await encode(n);
+				console.log("Encoded", e);
+				const d = await decode(e);
+				console.log("Decoded", d);
+			}
+
+			(async () => {
+				await test(false);
+				await test(true);
+				await test(12);
+				await test(-12);
+				await test(null);
+				await test(undefined);
+				await test(12.2);
+				await test(new Date());
+				await test("hello world");
+				await test(/hello (\w+)/i);
+			})()
+		</script>
 	</head>
 	<body>
 	</body>
