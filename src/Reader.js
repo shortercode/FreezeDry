@@ -6,7 +6,6 @@ const DECODER = new TextDecoder();
 export class Reader {
 	constructor ()
 	{
-		this.blob = null;
 		this.buffer = null;
 		this.view = null;
 
@@ -14,28 +13,30 @@ export class Reader {
 		this.length = 0;
 	}
 
-	async ReadFrom (blob)
-	{
-		this.blob = blob;
-		this.buffer = await ReadBlob(blob);
+	ReadFrom (buffer)
+		this.buffer = buffer;
 		this.view = new DataView(this.buffer);
 		this.length = this.buffer.byteLength;
 	}
 
 	Close ()
 	{
-		this.blob = null;
 		this.buffer = null;
 		this.view = null;
 		this.length = 0;
 		this.position = 0;
 	}
 
+	Skip(l)
+	{
+		this.position += l;
+	}
+
 	ReadBlob (length, type = "text/plain")
 	{
 		const i = this.position;
 		this.position += length;
-		return this.blob.slice(i, this.position, type);
+		return new Blob([this.buffer.slice(i, this.position)], { type });
 	}
 
 	ReadBytes (length)
