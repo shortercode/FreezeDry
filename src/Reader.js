@@ -4,19 +4,12 @@ const HIGHER_BITMASK = 0b10000000;
 const DECODER = new TextDecoder();
 
 export class Reader {
-	constructor ()
+	constructor (typedArray)
 	{
-		this.buffer = null;
-		this.view = null;
-
-		this.position = 0;
-		this.length = 0;
-	}
-
-	ReadFrom (buffer)
-		this.buffer = buffer;
+		this.buffer = typedArray.buffer;
 		this.view = new DataView(this.buffer);
 		this.length = this.buffer.byteLength;
+		this.position = 0;
 	}
 
 	Close ()
