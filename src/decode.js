@@ -1,18 +1,26 @@
 export async function decode (buffer) {
 	const reader = new Reader(buffer);
-	
+
 	const str = reader.ReadText(4);
 	const props = reader.Read16();
 	const end = reader.Read16();
-	
+
 	if (str != "JSOF" || end != 0x0D0A)
 		throw new Error("Invalid header");
-	
-	return parseToken(reader);	
+
+	return parseToken(reader);
+}
+
+function skip (l, reader) {
+	reader.Skip(l);
+	return null;
 }
 
 function parseToken (reader) {
-	switch (reader.Read8()) {
+	const type = reader.Read8();
+	const l = type < 9 ? reader.ReadV() : 0;
+
+	switch (type) {
 		case TYPE_NULL:
 			return null;
 		case TYPE_UNDEFINED:
@@ -22,35 +30,23 @@ function parseToken (reader) {
 		case TYPE_BOOLEAN_FALSE:
 			return false;
 			break;
-
 		case TYPE_STRING:
-			const l = reader.ReadV();
 			return reader.ReadText(l);
 			break;
 		case TYPE_REGEXP:
-			const l = reader.ReadV();
 			return new RegExp(reader.ReadText(l));
 			break;
 		case TYPE_SET:
+			return skip(l, reader);
+			break;
 		case TYPE_GENERIC_ARRAY:
-			writer.WriteV(token.length);
-			for (const item of token.data)
-				serializeToken(item, writer);
+			return skip(l, reader);
 			break;
 		case TYPE_GENERIC_OBJECT:
-			writer.WriteV(token.length);
-			for (const [key, item] of token.data) {
-				writer.WriteV(key.length);
-				writer.WriteText(key);
-				serializeToken(item, writer);
-			}
+			return skip(l, reader);
 			break;
 		case TYPE_MAP:
-			writer.WriteV(token.length);
-			for (const [key, item] of token.data) {
-				serializeToken(key, writer);
-				serializeToken(item, writer);
-			}
+			return skip(l, reader);
 			break;
 		case TYPE_UINT8_ARRAY:
 		case TYPE_INT8_ARRAY:
@@ -62,36 +58,22 @@ function parseToken (reader) {
 		case TYPE_FLOAT32_ARRAY:
 		case TYPE_FLOAT64_ARRAY:
 		case TYPE_DATAVIEW:
-			writer.WriteV(token.length);
-			writer.WriteV(token.data[1]);
-			writer.WriteV(token.data[2]);
-			serializeToken(token.data[0], writer);
+			return skip(l, reader);
 			break;
 		case TYPE_ARRAYBUFFER:
-			writer.WriteV(token.length);
-			writer.WriteBytes(new Uint8Array(token.data));
+			return skip(l, reader);
 			break;
 		case TYPE_FILE:
-			writer.WriteV(token.length);
-			writer.WriteV(token.data[0].length);
-			writer.WriteText(token.data[0]);
-			writer.WriteV(token.data[1].length);
-			writer.WriteText(token.data[1]);
-			writer.WriteV(token.data[2]);
-			writer.WriteBytes(await ReadBlob(token.data[3]));
+			return skip(l, reader);
 			break;
 		case TYPE_BLOB:
-			writer.WriteV(token.length);
-			writer.WriteV(token.data[0].length);
-			writer.WriteText(token.data[0]);
-			writer.WriteBytes(await ReadBlob(token.data[1]));
+			return skip(l, reader);
 			break;
 		case TYPE_IMAGE_DATA:
+			return skip(l, reader);
+			break;
 		case TYPE_IMAGE_BITMAP:
-			writer.WriteV(token.length);
-			writer.WriteV(token.data.width);
-			writer.WriteV(token.data.height);
-			writer.WriteBytes(token.data.data);
+			return skip(l, reader);
 			break;
 		case TYPE_FLOAT_64:
 			return reader.ReadFloat();
@@ -106,7 +88,7 @@ function parseToken (reader) {
 			return -reader.ReadV();
 			break;
 		case TYPE_REFERENCE:
-			return writer.WriteV(token.data);
+			return skip(reader);
 			break;
 	}
 }
