@@ -226,14 +226,14 @@ function createToken(type, length, data) {
 
 function tokenizeTypedArray(obj) {
 
-	const { buffer, byteLength, byteOffset } = obj;
+	const { buffer, length, byteOffset } = obj;
 	const ref = object_set.add(buffer);
 
 	if (!ref)
 		ref = createToken(TYPE.ARRAYBUFFER, buffer.byteLength, buffer);
 
-	const contents = [ref, byteLength, byteOffset];
-	const length = tokenSize(ref) + vIntLength(byteLength) + vIntLength(byteOffset);
+	const contents = [ref, length, byteOffset];
+	const length = tokenSize(ref) + vIntLength(length) + vIntLength(byteOffset);
 
 	// should deduplicate the underlying array buffer here, could be very useful
 	if (obj instanceof DataView) {
