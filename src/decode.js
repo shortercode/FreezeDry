@@ -3,14 +3,6 @@ import { Reader } from "./Reader.js";
 
 export async function decode (buffer) {
 	const reader = new Reader(buffer);
-
-	const str = reader.ReadText(4);
-	const props = reader.Read16();
-	const end = reader.Read16();
-
-	if (str != "JSOF" || end != 0x0D0A)
-		throw new Error("Invalid header");
-
 	return parseToken(reader);
 }
 
@@ -19,9 +11,49 @@ function skip (l, reader) {
 	return null;
 }
 
+function createRegExp(str) {
+	const parser = /^\/(.*)\/(\w*)$/g;
+	const match = parser.exec(str);
+	if (!match)
+		throw new Error("Unable to parse Regular Expression");
+
+	return new RegExp(match[1], match[2]);
+}
+
+function parseArray(l, reader) {
+	const n = reader.position + l;
+	const results = [];
+	while (reader.position < n) {
+		results.push(parseToken(reader));
+	}
+	return results;
+}
+
+function parseObject(l, reader) {
+	const n = reader.position + l;
+	const results = {};
+	while (reader.position < n) {
+		const textLength = reader.ReadV();
+		const key = reader.ReadText(textLength);
+		results[key] = parseToken(reader);
+	}
+	return results;
+}
+
+function parseMap(l, reader) {
+	const n = reader.position + l;
+	const results = new Map();
+	while (reader.position < n) {
+		const key = parseToken(reader);
+		const value = parseToken(reader);
+		results.set(key, value);
+	}
+	return results;
+}
+
 function parseToken (reader) {
 	const type = reader.Read8();
-	const l = type < 9 ? reader.ReadV() : 0;
+	const l = type < 9 ? 0 : reader.ReadV();
 
 	switch (type) {
 		case TYPE.NULL:
@@ -37,19 +69,19 @@ function parseToken (reader) {
 			return reader.ReadText(l);
 			break;
 		case TYPE.REGEXP:
-			return new RegExp(reader.ReadText(l));
+			return createRegExp(reader.ReadText(l));
 			break;
 		case TYPE.SET:
-			return skip(l, reader);
+			return new Set(parseArray(l, reader));
 			break;
 		case TYPE.GENERIC_ARRAY:
-			return skip(l, reader);
+			return parseArray(l, reader);
 			break;
 		case TYPE.GENERIC_OBJECT:
-			return skip(l, reader);
+			return parseObject(l, reader);
 			break;
 		case TYPE.MAP:
-			return skip(l, reader);
+			return parseMap(l, reader);
 			break;
 		case TYPE.UINT8_ARRAY:
 		case TYPE.INT8_ARRAY:
