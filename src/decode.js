@@ -3,7 +3,8 @@ import { Reader } from "./Reader.js";
 
 export async function decode (buffer) {
 	const reader = new Reader(buffer);
-	return parseToken(reader);
+	const lookup = [];
+	return parseToken(reader, lookup);
 }
 
 function skip (l, reader) {
@@ -63,9 +64,22 @@ function parseArrayBuffer(l, reader) {
 	return reader.ReadBuffer(l);
 }
 
-function parseToken (reader) {
+function getReference(reader, arr) {
+	const i = reader.ReadV();
+	if (i < arr.length)
+		return arr[i];
+
+	throw new Error("Invalid reference value");
+}
+
+function storeReference(obj, arr) {
+	arr.push(obj);
+}
+
+function parseToken (reader, lookup) {
 	const type = reader.Read8();
 	const l = type < 9 ? 0 : reader.ReadV();
+	let result;
 
 	switch (type) {
 		case TYPE.NULL:
@@ -153,7 +167,9 @@ function parseToken (reader) {
 			return -reader.ReadV();
 			break;
 		case TYPE.REFERENCE:
-			return skip(reader);
+			result = getReference(reader, lookup);
 			break;
 	}
+
+	return result;
 }
