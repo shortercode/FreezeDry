@@ -32,6 +32,13 @@ export class Reader {
 		return new Blob([this.buffer.slice(i, this.position)], { type });
 	}
 
+	ReadBuffer (length)
+	{
+		const buffer = this.buffer.slice(this.position, this.position + length)
+		this.position += length;
+		return buffer;
+	}
+
 	ReadBytes (length)
 	{
 		const view = new Uint8Array(this.buffer, this.position, length);
