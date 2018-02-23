@@ -1,3 +1,5 @@
+import { REFERENCE } from "./types.js";
+
 export class ReferenceList {
 	constructor () {
 		this.data = new Map();
@@ -9,8 +11,8 @@ export class ReferenceList {
 		if (ref)
 			return ref;
 
-		this.set(obj, {
-			type: TYPE_REFERENCE,
+		this.data.set(obj, {
+			type: REFERENCE,
 			data: this.counter++
 		});
 	}
