@@ -51,6 +51,18 @@ function parseMap(l, reader) {
 	return results;
 }
 
+function parseTypedArray(l, type, reader) {
+	const offset = reader.ReadV();
+	const length = reader.ReadV();
+	const buffer = parseToken(reader);
+
+	return new type(buffer, offset, length);
+}
+
+function parseArrayBuffer(l, reader) {
+	return reader.ReadBuffer(l);
+}
+
 function parseToken (reader) {
 	const type = reader.Read8();
 	const l = type < 9 ? 0 : reader.ReadV();
@@ -84,19 +96,37 @@ function parseToken (reader) {
 			return parseMap(l, reader);
 			break;
 		case TYPE.UINT8_ARRAY:
+			return parseTypedArray(l, Uint8Array, reader);
+			break;
 		case TYPE.INT8_ARRAY:
+			return parseTypedArray(l, Int8Array, reader);
+			break;
 		case TYPE.CLAMPED_UINT8_ARRAY:
+			return parseTypedArray(l, Uint8ClampedArray, reader);
+			break;
 		case TYPE.INT16_ARRAY:
+			return parseTypedArray(l, Int16Array, reader);
+			break;
 		case TYPE.UINT16_ARRAY:
+			return parseTypedArray(l, Uint16Array, reader);
+			break;
 		case TYPE.INT32_ARRAY:
+			return parseTypedArray(l, Int32Array, reader);
+			break;
 		case TYPE.UINT32_ARRAY:
+			return parseTypedArray(l, Uint32Array, reader);
+			break;
 		case TYPE.FLOAT32_ARRAY:
+			return parseTypedArray(l, Float32Array, reader);
+			break;
 		case TYPE.FLOAT64_ARRAY:
+			return parseTypedArray(l, Float64Array, reader);
+			break;
 		case TYPE.DATAVIEW:
-			return skip(l, reader);
+			return parseTypedArray(l, DataView, reader);
 			break;
 		case TYPE.ARRAYBUFFER:
-			return skip(l, reader);
+			return parseArrayBuffer(l, reader);
 			break;
 		case TYPE.FILE:
 			return skip(l, reader);
