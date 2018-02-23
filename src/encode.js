@@ -7,11 +7,13 @@ import { bitmapToImageData } from "./bitmap.js";
  * Keep fixed value tokens as constants
  */
 
+const MAX_UINT = 2 ** 32;
+
 const TOKEN_NULL = { type: TYPE.NULL };
 const TOKEN_UNDEFINED = { type: TYPE.UNDEFINED };
 const TOKEN_BOOLEAN_TRUE = { type: TYPE.BOOLEAN_TRUE };
 const TOKEN_BOOLEAN_FALSE = { type: TYPE.BOOLEAN_FALSE };
-const HEADER_SIZE = 8;
+const HEADER_SIZE = 0;//8;
 
 const TypedArray = Object.getPrototypeOf(Int8Array);
 
@@ -37,14 +39,14 @@ export async function encode (obj) {
 	 * - CRLF
 	 */
 
-	writer.WriteText("JSOF");
-	writer.Write8(0x00);
-	writer.Write8(0x00);
-	writer.Write8(0x0D);
-	writer.Write8(0x0A);
-	
+	// writer.WriteText("JSOF");
+	// writer.Write8(0x00);
+	// writer.Write8(0x00);
+	// writer.Write8(0x0D);
+	// writer.Write8(0x0A);
+
 	console.log(structure);
-	
+
 	await serializeToken(structure, writer);
 
 	return writer.Close();
@@ -136,7 +138,7 @@ async function serializeToken (token, writer) {
 			break;
 		case TYPE.FLOAT_64:
 		case TYPE.DATE:
-			writer.Write64(token.data);
+			writer.WriteFloat(token.data);
 			break;
 		case TYPE.VINT_POS:
 		case TYPE.VINT_NEG:
@@ -147,17 +149,17 @@ async function serializeToken (token, writer) {
 	}
 }
 
-function vIntLength(i) {
+function vIntLength(obj) {
 	if (!Number.isInteger(obj) || obj >= MAX_UINT)
 		throw new Error("Invalid value for LEB UINT");
 	let length = 5;
-	if (value < 128)
+	if (obj < 128)
 		length =  1;
-	else if (value < 16384)
+	else if (obj < 16384)
 		length =  2;
-	else if (value < 2097152)
+	else if (obj < 2097152)
 		length =  3;
-	else if (value < 268435456)
+	else if (obj < 268435456)
 		length =  4;
 
 	return length;
@@ -200,7 +202,18 @@ function ReadBlob(blob) {
 }
 
 function tokenSize(obj) {
-	return 1 + ("length" in obj ? obj.length + vIntLength(obj.length) : 0)
+	if ("length" in obj) {
+		const { type, length } = obj;
+		if (type < 9) {
+			return 1 + length;
+		}
+		else {
+			return 1 + length + vIntLength(length);
+		}
+	}
+	else {
+		return 1;
+	}
 }
 
 function createToken(type, length, data) {
@@ -212,16 +225,16 @@ function createToken(type, length, data) {
 }
 
 function tokenizeTypedArray(obj) {
-	
+
 	const { buffer, byteLength, byteOffset } = obj;
 	const ref = object_set.add(buffer);
 
 	if (!ref)
 		ref = createToken(TYPE.ARRAYBUFFER, buffer.byteLength, buffer);
-	
+
 	const contents = [ref, byteLength, byteOffset];
 	const length = tokenSize(ref) + vIntLength(byteLength) + vIntLength(byteOffset);
-	
+
 	// should deduplicate the underlying array buffer here, could be very useful
 	if (obj instanceof DataView) {
 		return createToken(TYPE.DATAVIEW, length, contents);
@@ -268,7 +281,7 @@ function tokenizeObject(obj, object_set) {
 
 	if (obj instanceof RegExp) {
 		const str = obj.toString();
-		return createToken(TYPE.REGEXP, str, str);
+		return createToken(TYPE.REGEXP, str.length, str);
 	}
 	else if (obj instanceof Date) {
 		return createToken(TYPE.DATE, 8, obj.getTime());
