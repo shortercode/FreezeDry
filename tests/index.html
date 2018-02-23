@@ -23,6 +23,8 @@
 				await test(new Date());
 				await test("hello world");
 				await test(/hello (\w+)/i);
+				await test([1, 2, 3, 196]);
+				await test({"name": { "first": "James", "last": "Majors"}, "age": 32, "married": true });
 			})()
 		</script>
 	</head>
