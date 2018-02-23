@@ -61,19 +61,19 @@ export class Reader {
 
 	Read8 ()
 	{
-		const v = this.view.getUint8(this.position, true);
+		const v = this.view.getUint8(this.position);
 		this.position += 1;
 		return v;
 	}
 	Read16 ()
 	{
-		const v = this.view.getUint16(this.position, true);
+		const v = this.view.getUint16(this.position);
 		this.position += 2;
 		return v;
 	}
 	Read32 ()
 	{
-		const v = this.view.getUint32(this.position, true);
+		const v = this.view.getUint32(this.position);
 		this.position += 4;
 		return v;
 	}
@@ -110,7 +110,7 @@ export class Reader {
 
 	ReadFloat ()
 	{
-		const v = this.view.getFloat64(this.position, true);
+		const v = this.view.getFloat64(this.position);
 		this.position += 8;
 		return v;
 	}
