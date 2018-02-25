@@ -21,43 +21,63 @@ function createRegExp(str) {
 	return new RegExp(match[1], match[2]);
 }
 
-function parseArray(l, reader) {
+function parseArray(l, reader, lookup) {
 	const n = reader.position + l;
 	const results = [];
+	lookup.push(results);
 	while (reader.position < n) {
-		results.push(parseToken(reader));
+		results.push(parseToken(reader, lookup));
 	}
 	return results;
 }
 
-function parseObject(l, reader) {
+function parseSet(l, reader, lookup) {
+	const n = reader.position + l;
+	const results = new Set();
+	lookup.push(results);
+	while (reader.position < n) {
+		results.push(parseToken(reader, lookup));
+	}
+	return results;
+}
+
+function parseObject(l, reader, lookup) {
 	const n = reader.position + l;
 	const results = {};
+	lookup.push(results);
 	while (reader.position < n) {
 		const textLength = reader.ReadV();
 		const key = reader.ReadText(textLength);
-		results[key] = parseToken(reader);
+		results[key] = parseToken(reader, lookup);
 	}
 	return results;
 }
 
-function parseMap(l, reader) {
+function parseMap(l, reader, lookup) {
 	const n = reader.position + l;
 	const results = new Map();
+	lookup.push(results);
 	while (reader.position < n) {
-		const key = parseToken(reader);
-		const value = parseToken(reader);
+		const key = parseToken(reader, lookup);
+		const value = parseToken(reader, lookup);
 		results.set(key, value);
 	}
 	return results;
 }
 
-function parseTypedArray(l, type, reader) {
-	const offset = reader.ReadV();
+function parseTypedArray(l, type, reader, lookup) {
 	const length = reader.ReadV();
-	const buffer = parseToken(reader);
+	const offset = reader.ReadV();
+	const subtype = reader.Peek8();
+	const buffer = parseToken(reader, lookup);
+	const result = new type(buffer, offset, length);
 
-	return new type(buffer, offset, length);
+	lookup.push(result);
+	// only push the buffer to the lookup if the subtype was NOT a REFERENCE
+	if (subtype === TYPE.ARRAYBUFFER)
+		lookup.push(buffer);
+
+	return result;
 }
 
 function parseArrayBuffer(l, reader) {
@@ -70,10 +90,6 @@ function getReference(reader, arr) {
 		return arr[i];
 
 	throw new Error("Invalid reference value");
-}
-
-function storeReference(obj, arr) {
-	arr.push(obj);
 }
 
 function parseToken (reader, lookup) {
@@ -92,73 +108,73 @@ function parseToken (reader, lookup) {
 			return false;
 			break;
 		case TYPE.STRING:
-			return reader.ReadText(l);
+			result = reader.ReadText(l);
 			break;
 		case TYPE.REGEXP:
-			return createRegExp(reader.ReadText(l));
+			result = createRegExp(reader.ReadText(l));
 			break;
 		case TYPE.SET:
-			return new Set(parseArray(l, reader));
+			return parseSet(l, reader, lookup);
 			break;
 		case TYPE.GENERIC_ARRAY:
-			return parseArray(l, reader);
+			return parseArray(l, reader, lookup);
 			break;
 		case TYPE.GENERIC_OBJECT:
-			return parseObject(l, reader);
+			return parseObject(l, reader, lookup);
 			break;
 		case TYPE.MAP:
-			return parseMap(l, reader);
+			return parseMap(l, reader, lookup);
 			break;
 		case TYPE.UINT8_ARRAY:
-			return parseTypedArray(l, Uint8Array, reader);
+			return parseTypedArray(l, Uint8Array, reader, lookup);
 			break;
 		case TYPE.INT8_ARRAY:
-			return parseTypedArray(l, Int8Array, reader);
+			return parseTypedArray(l, Int8Array, reader, lookup);
 			break;
 		case TYPE.CLAMPED_UINT8_ARRAY:
-			return parseTypedArray(l, Uint8ClampedArray, reader);
+			return parseTypedArray(l, Uint8ClampedArray, reader, lookup);
 			break;
 		case TYPE.INT16_ARRAY:
-			return parseTypedArray(l, Int16Array, reader);
+			return parseTypedArray(l, Int16Array, reader, lookup);
 			break;
 		case TYPE.UINT16_ARRAY:
-			return parseTypedArray(l, Uint16Array, reader);
+			return parseTypedArray(l, Uint16Array, reader, lookup);
 			break;
 		case TYPE.INT32_ARRAY:
-			return parseTypedArray(l, Int32Array, reader);
+			return parseTypedArray(l, Int32Array, reader, lookup);
 			break;
 		case TYPE.UINT32_ARRAY:
-			return parseTypedArray(l, Uint32Array, reader);
+			return parseTypedArray(l, Uint32Array, reader, lookup);
 			break;
 		case TYPE.FLOAT32_ARRAY:
-			return parseTypedArray(l, Float32Array, reader);
+			return parseTypedArray(l, Float32Array, reader, lookup);
 			break;
 		case TYPE.FLOAT64_ARRAY:
-			return parseTypedArray(l, Float64Array, reader);
+			return parseTypedArray(l, Float64Array, reader, lookup);
 			break;
 		case TYPE.DATAVIEW:
-			return parseTypedArray(l, DataView, reader);
+			return parseTypedArray(l, DataView, reader, lookup);
 			break;
 		case TYPE.ARRAYBUFFER:
 			return parseArrayBuffer(l, reader);
 			break;
 		case TYPE.FILE:
-			return skip(l, reader);
+			result = skip(l, reader);
 			break;
 		case TYPE.BLOB:
-			return skip(l, reader);
+			result = skip(l, reader);
 			break;
 		case TYPE.IMAGE_DATA:
-			return skip(l, reader);
+			result = skip(l, reader);
 			break;
 		case TYPE.IMAGE_BITMAP:
-			return skip(l, reader);
+			result = skip(l, reader);
 			break;
 		case TYPE.FLOAT_64:
 			return reader.ReadFloat();
 			break;
 		case TYPE.DATE:
-			return new Date(reader.ReadFloat());
+			result = new Date(reader.ReadFloat());
 			break;
 		case TYPE.VINT_POS:
 			return reader.ReadV();
@@ -167,9 +183,12 @@ function parseToken (reader, lookup) {
 			return -reader.ReadV();
 			break;
 		case TYPE.REFERENCE:
-			result = getReference(reader, lookup);
+			return getReference(reader, lookup);
 			break;
 	}
+
+	if (result)
+		lookup.push(result);
 
 	return result;
 }
