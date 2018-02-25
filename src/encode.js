@@ -46,6 +46,7 @@ export async function encode (obj) {
 	// writer.Write8(0x0A);
 
 	console.log(structure);
+	console.log(referenceList);
 
 	await serializeToken(structure, writer);
 
@@ -224,47 +225,48 @@ function createToken(type, length, data) {
 	};
 }
 
-function tokenizeTypedArray(obj) {
+function tokenizeTypedArray(obj, object_set) {
 
-	const { buffer, length, byteOffset } = obj;
-	const ref = object_set.add(buffer);
+	const { buffer, length, byteLength, byteOffset } = obj;
+	const len = obj instanceof DataView ? byteLength : length;
+	let ref = object_set.add(buffer);
 
 	if (!ref)
 		ref = createToken(TYPE.ARRAYBUFFER, buffer.byteLength, buffer);
 
-	const contents = [ref, length, byteOffset];
-	const length = tokenSize(ref) + vIntLength(length) + vIntLength(byteOffset);
+	const contents = [ref, len, byteOffset];
+	const l = tokenSize(ref) + vIntLength(len) + vIntLength(byteOffset);
 
 	// should deduplicate the underlying array buffer here, could be very useful
 	if (obj instanceof DataView) {
-		return createToken(TYPE.DATAVIEW, length, contents);
+		return createToken(TYPE.DATAVIEW, l, contents);
 	}
 	else if (obj instanceof Uint8Array) {
-		return createToken(TYPE.UINT8_ARRAY, length, contents);
+		return createToken(TYPE.UINT8_ARRAY, l, contents);
 	}
 	else if (obj instanceof Int8Array) {
-		return createToken(TYPE.INT8_ARRAY, length, contents);
+		return createToken(TYPE.INT8_ARRAY, l, contents);
 	}
 	else if (obj instanceof Uint8ClampedArray) {
-		return createToken(TYPE.CLAMPED_UINT8_ARRAY, length, contents);
+		return createToken(TYPE.CLAMPED_UINT8_ARRAY, l, contents);
 	}
 	else if (obj instanceof Uint16Array) {
-		return createToken(TYPE.UINT16_ARRAY, length, contents);
+		return createToken(TYPE.UINT16_ARRAY, l, contents);
 	}
 	else if (obj instanceof Int16Array) {
-		return createToken(TYPE.INT16_ARRAY, length, contents);
+		return createToken(TYPE.INT16_ARRAY, l, contents);
 	}
 	else if (obj instanceof Uint32Array) {
-		return createToken(TYPE.UINT32_ARRAY, length, contents);
+		return createToken(TYPE.UINT32_ARRAY, l, contents);
 	}
 	else if (obj instanceof Int32Array) {
-		return createToken(TYPE.INT32_ARRAY, length, contents);
+		return createToken(TYPE.INT32_ARRAY, l, contents);
 	}
 	else if (obj instanceof Float32Array) {
-		return createToken(TYPE.FLOAT32_ARRAY, length, contents);
+		return createToken(TYPE.FLOAT32_ARRAY, l, contents);
 	}
 	else if (obj instanceof Float64Array) {
-		return createToken(TYPE.FLOAT64_ARRAY, length, contents);
+		return createToken(TYPE.FLOAT64_ARRAY, l, contents);
 	}
 }
 
@@ -293,7 +295,7 @@ function tokenizeObject(obj, object_set) {
 	// array buffer views
 
 	else if (obj instanceof TypedArray || obj instanceof DataView) {
-		return tokenizeTypedArray(obj);
+		return tokenizeTypedArray(obj, object_set);
 	}
 
   // blob type objects
