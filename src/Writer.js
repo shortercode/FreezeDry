@@ -66,6 +66,10 @@ export class Writer {
 	{
 		if (v >= MAX_UINT)
 			throw new Error("Exceeded max size");
+		if (v == 0) {
+			this.Write8(0);
+			return;
+		}
 		while (v != 0) {
 			let byte = v & LOWER_BITMASK;
 			v >>>= 7;
