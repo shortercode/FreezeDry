@@ -52,6 +52,11 @@ export class Reader {
 		return DECODER.decode(view);
 	}
 
+	Peek8 ()
+	{
+		return this.view.getUint8(this.position);
+	}
+
 	ReadV ()
 	{
 		let result = 0;
