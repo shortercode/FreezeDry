@@ -80,6 +80,13 @@ function parseTypedArray(l, type, reader, lookup) {
 	return result;
 }
 
+function parseImageData(l, reader, lookup) {
+	const array = parseToken(reader, lookup);
+	const width = reader.ReadV();
+	const height = reader.ReadV();
+	return new ImageData(array, width, height);
+}
+
 function parseArrayBuffer(l, reader) {
 	return reader.ReadBuffer(l);
 }
@@ -165,10 +172,10 @@ function parseToken (reader, lookup) {
 			result = skip(l, reader);
 			break;
 		case TYPE.IMAGE_DATA:
-			result = skip(l, reader);
+			result = parseImageData(l, reader, lookup);
 			break;
 		case TYPE.IMAGE_BITMAP:
-			result = skip(l, reader);
+			result = createImageBitmap(parseImageData(l, reader, lookup));
 			break;
 		case TYPE.FLOAT_64:
 			return reader.ReadFloat();
