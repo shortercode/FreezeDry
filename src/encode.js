@@ -133,9 +133,9 @@ async function serializeToken (token, writer) {
 		case TYPE.IMAGE_DATA:
 		case TYPE.IMAGE_BITMAP:
 			writer.WriteV(token.length);
-			writer.WriteV(token.data.width);
-			writer.WriteV(token.data.height);
-			writer.WriteBytes(token.data.data);
+			serializeToken(token.data[0], writer);
+			writer.WriteV(token.data[1]);
+			writer.WriteV(token.data[2]);
 			break;
 		case TYPE.FLOAT_64:
 		case TYPE.DATE:
@@ -303,13 +303,15 @@ function tokenizeObject(obj, object_set) {
 	else if (obj instanceof ImageBitmap) {
 		const imageData = bitmapToImageData(obj);
 		const { width, height } = imageData;
-		const length = imageData.data.length + vIntLength(width) + vIntLength(height);
-		return createToken(TYPE.IMAGE_BITMAP, length, imageData);
+		const buffer = createToken(imageData.data);
+		const length = buffer.length + vIntLength(width) + vIntLength(height);
+		return createToken(TYPE.IMAGE_BITMAP, length, [ buffer, width, height ]);
 	}
 	else if (obj instanceof ImageData) {
 		const  { width, height } = obj;
-		const length = obj.data.length + vIntLength(width) + vIntLength(height);
-		return createToken(TYPE.IMAGE_DATA, length, obj);
+		const buffer = createToken(obj.data);
+		const length = buffer.length + vIntLength(width) + vIntLength(height);
+		return createToken(TYPE.IMAGE_DATA, length, [ buffer, width, height ]);
 	}
 	else if (obj instanceof File) {
 		const  { type, name, lastModified } = obj;
