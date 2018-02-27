@@ -30,6 +30,8 @@
 					undef: undefined,
 					reg: /hello (\w+)/i,
 					self: null,
+					file: new File(["Hello world"], "hello.txt", { type: "application/javascript" }),
+					blob: new Blob(["const str = hello world;"], { type: "application/javascript" }),
 					arr: [
 						new Uint8Array(buffer),
 						new Int8Array(buffer),
