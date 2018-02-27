@@ -91,6 +91,24 @@ function parseArrayBuffer(l, reader) {
 	return reader.ReadBuffer(l);
 }
 
+function parseFile(l, reader) {
+	const i = reader.position;
+	const typeLength = reader.ReadV();
+	const type = reader.ReadText(typeLength);
+	const nameLength = reader.ReadV();
+	const name = reader.ReadText(nameLength);
+	const lastModified = reader.Read64();
+	const blob = reader.ReadBlob(l + i - reader.position);
+	return new File([ blob ], name, { type, lastModified });
+}
+
+function parseBlob(l, reader) {
+	const i = reader.position;
+	const typeLength = reader.ReadV();
+	const type = reader.ReadText(typeLength);
+	return reader.ReadBlob(l + i - reader.position, type);
+}
+
 function getReference(reader, arr) {
 	const i = reader.ReadV();
 	if (i < arr.length)
@@ -166,10 +184,10 @@ function parseToken (reader, lookup) {
 			return parseArrayBuffer(l, reader);
 			break;
 		case TYPE.FILE:
-			result = skip(l, reader);
+			result = parseFile(l, reader);
 			break;
 		case TYPE.BLOB:
-			result = skip(l, reader);
+			result = parseBlob(l, reader);
 			break;
 		case TYPE.IMAGE_DATA:
 			result = parseImageData(l, reader, lookup);

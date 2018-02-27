@@ -79,21 +79,21 @@ async function serializeToken (token, writer) {
 		case TYPE.GENERIC_ARRAY:
 			writer.WriteV(token.length);
 			for (const item of token.data)
-				serializeToken(item, writer);
+				await serializeToken(item, writer);
 			break;
 		case TYPE.GENERIC_OBJECT:
 			writer.WriteV(token.length);
 			for (const [key, item] of token.data) {
 				writer.WriteV(key.length);
 				writer.WriteText(key);
-				serializeToken(item, writer);
+				await serializeToken(item, writer);
 			}
 			break;
 		case TYPE.MAP:
 			writer.WriteV(token.length);
 			for (const [key, item] of token.data) {
-				serializeToken(key, writer);
-				serializeToken(item, writer);
+				await serializeToken(key, writer);
+				await serializeToken(item, writer);
 			}
 			break;
 		case TYPE.UINT8_ARRAY:
@@ -109,7 +109,7 @@ async function serializeToken (token, writer) {
 			writer.WriteV(token.length);
 			writer.WriteV(token.data[1]);
 			writer.WriteV(token.data[2]);
-			serializeToken(token.data[0], writer);
+			await serializeToken(token.data[0], writer);
 			break;
 		case TYPE.ARRAYBUFFER:
 			writer.WriteV(token.length);
@@ -121,19 +121,19 @@ async function serializeToken (token, writer) {
 			writer.WriteText(token.data[0]);
 			writer.WriteV(token.data[1].length);
 			writer.WriteText(token.data[1]);
-			writer.WriteV(token.data[2]);
-			writer.WriteBytes(await ReadBlob(token.data[3]));
+			writer.Write64(token.data[2]);
+			writer.WriteBytes(new Uint8Array(await ReadBlob(token.data[3])));
 			break;
 		case TYPE.BLOB:
 			writer.WriteV(token.length);
 			writer.WriteV(token.data[0].length);
 			writer.WriteText(token.data[0]);
-			writer.WriteBytes(await ReadBlob(token.data[1]));
+			writer.WriteBytes(new Uint8Array(await ReadBlob(token.data[1])));
 			break;
 		case TYPE.IMAGE_DATA:
 		case TYPE.IMAGE_BITMAP:
 			writer.WriteV(token.length);
-			serializeToken(token.data[0], writer);
+			await serializeToken(token.data[0], writer);
 			writer.WriteV(token.data[1]);
 			writer.WriteV(token.data[2]);
 			break;
@@ -317,7 +317,7 @@ function tokenizeObject(obj, object_set) {
 		const  { type, name, lastModified } = obj;
 		const typeLength = type.length;
 		const nameLength = name.length;
-		const length = obj.size + nameLength + typeLength + vIntLength(typeLength) + vIntLength(nameLength) + vIntLength(lastModified);
+		const length = obj.size + nameLength + typeLength + vIntLength(typeLength) + vIntLength(nameLength) + 8;
 		return createToken(TYPE.FILE, length, [ type, name, lastModified, obj ]);
 	}
 	else if (obj instanceof Blob) {
