@@ -25,7 +25,7 @@ const TypedArray = Object.getPrototypeOf(Int8Array);
  * - come up with some way of writing larger values to VINTs
  */
 
-export async function encode (obj) {
+export async function dry (obj) {
 	const referenceList = new ReferenceList();
 	const structure = tokenize(obj, referenceList);
 
