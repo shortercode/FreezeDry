@@ -1,0 +1,39 @@
+{
+  "name": "freezedry",
+  "version": "1.0.0",
+  "description": "A simple serializer for complex JS object",
+  "main": "freezedry.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "node tests/index.js",
+    "start": "node server.js",
+    "prepack": "sh build.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shortercode/JSOF.git"
+  },
+  "keywords": [
+    "JavaScript",
+    "JS",
+    "JSON",
+    "BSON",
+    "serialise",
+    "structuredclone",
+    "deserialize",
+    "serialize",
+    "deserialize"
+  ],
+  "author": "Iain Shorter <iainshorter@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/shortercode/JSOF/issues"
+  },
+  "homepage": "https://github.com/shortercode/JSOF#readme",
+  "devDependencies": {
+    "bson": "^2.0.4",
+    "msgpack-lite": "^0.1.26"
+  }
+}
