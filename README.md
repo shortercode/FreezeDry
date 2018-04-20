@@ -81,10 +81,7 @@ You can work around support for some types by using blobs to store the source of
 		const res = await fetch("main.wasm");
 		const blob = await res.blob();
 
-		return await freeze.dry({
-			blob,
-			type: "wasm"
-		});
+		return await freeze.dry(blob)
 	}
 
 	async function restore (byteArray) {
@@ -96,7 +93,6 @@ You can work around support for some types by using blobs to store the source of
 		return module;
 	}
 ```
-
 
 ## Implementation details
 
