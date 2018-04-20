@@ -2,20 +2,16 @@ import * as TYPE from "./types.js";
 import { Writer } from "./Writer.js";
 import { ReferenceList } from "./ReferenceList.js";
 import { bitmapToImageData } from "./bitmap.js";
+import { MAX_UINT, vIntLength, textLength } from "./misc.js";
 
 /*
  * Keep fixed value tokens as constants
  */
 
-const MAX_UINT = 2 ** 32;
-
 const TOKEN_NULL = { type: TYPE.NULL };
 const TOKEN_UNDEFINED = { type: TYPE.UNDEFINED };
 const TOKEN_BOOLEAN_TRUE = { type: TYPE.BOOLEAN_TRUE };
 const TOKEN_BOOLEAN_FALSE = { type: TYPE.BOOLEAN_FALSE };
-const HEADER_SIZE = 0;//8;
-
-const TypedArray = Object.getPrototypeOf(Int8Array);
 
 /*
  * Potential options:
@@ -25,29 +21,12 @@ const TypedArray = Object.getPrototypeOf(Int8Array);
  * - come up with some way of writing larger values to VINTs
  */
 
-export async function encode (obj) {
+export async function dry (obj) {
 	const referenceList = new ReferenceList();
 	const structure = tokenize(obj, referenceList);
 
-	const size = HEADER_SIZE + tokenSize(structure);
+	const size = tokenSize(structure);
 	const writer = new Writer(size);
-
-	/*
-	 * Header chunk ( 8 bytes )
-	 * - File ID string
-	 * - 2 bytes for versioning
-	 * - CRLF
-	 */
-
-	// writer.WriteText("JSOF");
-	// writer.Write8(0x00);
-	// writer.Write8(0x00);
-	// writer.Write8(0x0D);
-	// writer.Write8(0x0A);
-
-	console.log(structure);
-	console.log(referenceList);
-
 	await serializeToken(structure, writer);
 
 	return writer.Close();
@@ -58,7 +37,10 @@ function isIterable (obj) {
 }
 
 async function serializeToken (token, writer) {
+
+	const startPosition = writer.position;
 	writer.Write8(token.type);
+
 	switch (token.type) {
 		case TYPE.NULL:
 		case TYPE.UNDEFINED:
@@ -84,8 +66,7 @@ async function serializeToken (token, writer) {
 		case TYPE.GENERIC_OBJECT:
 			writer.WriteV(token.length);
 			for (const [key, item] of token.data) {
-				writer.WriteV(key.length);
-				writer.WriteText(key);
+				writer.WriteTextAndLength(key);
 				await serializeToken(item, writer);
 			}
 			break;
@@ -117,17 +98,14 @@ async function serializeToken (token, writer) {
 			break;
 		case TYPE.FILE:
 			writer.WriteV(token.length);
-			writer.WriteV(token.data[0].length);
-			writer.WriteText(token.data[0]);
-			writer.WriteV(token.data[1].length);
-			writer.WriteText(token.data[1]);
+			writer.WriteTextAndLength(token.data[0]);
+			writer.WriteTextAndLength(token.data[1]);
 			writer.Write64(token.data[2]);
 			writer.WriteBytes(new Uint8Array(await ReadBlob(token.data[3])));
 			break;
 		case TYPE.BLOB:
 			writer.WriteV(token.length);
-			writer.WriteV(token.data[0].length);
-			writer.WriteText(token.data[0]);
+			writer.WriteTextAndLength(token.data[0]);
 			writer.WriteBytes(new Uint8Array(await ReadBlob(token.data[1])));
 			break;
 		case TYPE.IMAGE_DATA:
@@ -148,22 +126,12 @@ async function serializeToken (token, writer) {
 			// these types only require the data
 			break;
 	}
-}
 
-function vIntLength(obj) {
-	if (!Number.isInteger(obj) || obj >= MAX_UINT)
-		throw new Error("Invalid value for LEB UINT");
-	let length = 5;
-	if (obj < 128)
-		length =  1;
-	else if (obj < 16384)
-		length =  2;
-	else if (obj < 2097152)
-		length =  3;
-	else if (obj < 268435456)
-		length =  4;
+	const finishPosition = writer.position;
+	const writtenLength = finishPosition - startPosition;
 
-	return length;
+	if (writtenLength > tokenSize(token))
+		throw "more bytes written than expected";
 }
 
 function evaluateMapLength (obj) {
@@ -186,7 +154,7 @@ function evaluateArrayLength (obj) {
 function evaluateObjectLength(obj) {
 	let count = 0;
 	for (const [key, item] of obj) {
-		const l = key.length;
+		const l = textLength(key);
 		count += l + vIntLength(l);
 		count += tokenSize(item);
 	}
@@ -195,6 +163,9 @@ function evaluateObjectLength(obj) {
 
 function ReadBlob(blob) {
 	return new Promise ((resolve, reject) => {
+		if (typeof FileReader == "undefined")
+			return reject("this platform does not support blobs");
+
 		const fileReader = new FileReader();
 		fileReader.onload = () => resolve(fileReader.result);
 		fileReader.onerror = () => reject(fileReader.error);
@@ -225,7 +196,9 @@ function createToken(type, length, data) {
 	};
 }
 
-function tokenizeTypedArray(obj, object_set) {
+const tokenizerMap = new Map();
+
+function tokenizeTypedArray(type, obj, object_set) {
 
 	const { buffer, length, byteLength, byteOffset } = obj;
 	const len = obj instanceof DataView ? byteLength : length;
@@ -237,37 +210,16 @@ function tokenizeTypedArray(obj, object_set) {
 	const contents = [ref, len, byteOffset];
 	const l = tokenSize(ref) + vIntLength(len) + vIntLength(byteOffset);
 
-	// should deduplicate the underlying array buffer here, could be very useful
-	if (obj instanceof DataView) {
-		return createToken(TYPE.DATAVIEW, l, contents);
+	return createToken(type, l, contents);
+}
+
+function tokenizeIterable (obj, object_set) {
+	const contents = [];
+	for (const item of obj) {
+		contents.push(tokenize(item, object_set));
 	}
-	else if (obj instanceof Uint8Array) {
-		return createToken(TYPE.UINT8_ARRAY, l, contents);
-	}
-	else if (obj instanceof Int8Array) {
-		return createToken(TYPE.INT8_ARRAY, l, contents);
-	}
-	else if (obj instanceof Uint8ClampedArray) {
-		return createToken(TYPE.CLAMPED_UINT8_ARRAY, l, contents);
-	}
-	else if (obj instanceof Uint16Array) {
-		return createToken(TYPE.UINT16_ARRAY, l, contents);
-	}
-	else if (obj instanceof Int16Array) {
-		return createToken(TYPE.INT16_ARRAY, l, contents);
-	}
-	else if (obj instanceof Uint32Array) {
-		return createToken(TYPE.UINT32_ARRAY, l, contents);
-	}
-	else if (obj instanceof Int32Array) {
-		return createToken(TYPE.INT32_ARRAY, l, contents);
-	}
-	else if (obj instanceof Float32Array) {
-		return createToken(TYPE.FLOAT32_ARRAY, l, contents);
-	}
-	else if (obj instanceof Float64Array) {
-		return createToken(TYPE.FLOAT64_ARRAY, l, contents);
-	}
+
+	return createToken(TYPE.GENERIC_ARRAY, evaluateArrayLength(contents), contents);
 }
 
 function tokenizeObject(obj, object_set) {
@@ -279,92 +231,133 @@ function tokenizeObject(obj, object_set) {
 	if (ref)
 		return ref;
 
-	// semi primative values
+	let tokenizer = tokenizerMap.get(obj.constructor);
 
-	if (obj instanceof RegExp) {
-		const str = obj.toString();
-		return createToken(TYPE.REGEXP, str.length, str);
-	}
-	else if (obj instanceof Date) {
-		return createToken(TYPE.DATE, 8, obj.getTime());
-	}
-	else if (obj instanceof ArrayBuffer) {
-		return createToken(TYPE.ARRAYBUFFER, obj.byteLength, obj);
-	}
+	if (!tokenizer) {
 
-	// array buffer views
+		for (const [key, value] of tokenizerMap.entries()) {
+			if (obj instanceof key) {
+				tokenizer = value;
+				break;
+			}
+		}
 
-	else if (obj instanceof TypedArray || obj instanceof DataView) {
-		return tokenizeTypedArray(obj, object_set);
+		if (!tokenizer)
+			throw new TypeError("Unable to serialize unknown type");
 	}
 
-  // blob type objects
+	return tokenizer(obj, object_set);
+}
 
-	else if (obj instanceof ImageBitmap) {
+function define (ctor, tokenizer) {
+	tokenizerMap.set(ctor, tokenizer);
+}
+
+// semi primative objects
+
+define(RegExp, obj => {
+	const str = obj.toString();
+	return createToken(TYPE.REGEXP, textLength(str), str);
+});
+
+define(Date, obj => createToken(TYPE.DATE, 8, obj.getTime()));
+
+define(ArrayBuffer, obj => createToken(TYPE.ARRAYBUFFER, obj.byteLength, obj));
+
+// typed array instances
+
+define(DataView, (obj, set) => tokenizeTypedArray(TYPE.DATAVIEW, obj, set));
+define(Uint8Array, (obj, set) => tokenizeTypedArray(TYPE.UINT8_ARRAY, obj, set));
+define(Int8Array, (obj, set) => tokenizeTypedArray(TYPE.INT8_ARRAY, obj, set));
+define(Uint8ClampedArray, (obj, set) => tokenizeTypedArray(TYPE.CLAMPED_UINT8_ARRAY, obj, set));
+define(Uint16Array, (obj, set) => tokenizeTypedArray(TYPE.UINT16_ARRAY, obj, set));
+define(Int16Array, (obj, set) => tokenizeTypedArray(TYPE.INT16_ARRAY, obj, set));
+define(Uint32Array, (obj, set) => tokenizeTypedArray(TYPE.UINT32_ARRAY, obj, set));
+define(Int32Array, (obj, set) => tokenizeTypedArray(TYPE.INT32_ARRAY, obj, set));
+define(Float32Array, (obj, set) => tokenizeTypedArray(TYPE.FLOAT32_ARRAY, obj, set));
+define(Float64Array, (obj, set) => tokenizeTypedArray(TYPE.FLOAT64_ARRAY, obj, set));
+
+// blob like objects
+
+// NOTE these aren't available in node.js, so we need to check if they exist
+// before defining them
+
+if (typeof ImageBitmap != "undefined") {
+	define(ImageBitmap, obj => {
 		const imageData = bitmapToImageData(obj);
 		const { width, height } = imageData;
 		const buffer = createToken(imageData.data);
 		const length = buffer.length + vIntLength(width) + vIntLength(height);
 		return createToken(TYPE.IMAGE_BITMAP, length, [ buffer, width, height ]);
-	}
-	else if (obj instanceof ImageData) {
+	});
+}
+
+if (typeof ImageData != "undefined") {
+	define(ImageData, obj => {
+		// TODO this does not perform a ref check with it's buffer
 		const  { width, height } = obj;
 		const buffer = createToken(obj.data);
 		const length = buffer.length + vIntLength(width) + vIntLength(height);
 		return createToken(TYPE.IMAGE_DATA, length, [ buffer, width, height ]);
-	}
-	else if (obj instanceof File) {
+	});
+}
+
+if (typeof File != "undefined") {
+	define(File, obj => {
 		const  { type, name, lastModified } = obj;
-		const typeLength = type.length;
-		const nameLength = name.length;
+		const typeLength = textLength(type);
+		const nameLength = textLength(name);
 		const length = obj.size + nameLength + typeLength + vIntLength(typeLength) + vIntLength(nameLength) + 8;
 		return createToken(TYPE.FILE, length, [ type, name, lastModified, obj ]);
-	}
-	else if (obj instanceof Blob) {
+	});
+}
+
+if (typeof Blob != "undefined") {
+	define(Blob, obj => {
 		const  { type } = obj;
-		const typeLength = type.length;
+		const typeLength = textLength(type);
 		const data = [ type, obj ];
 		return createToken(TYPE.BLOB, obj.size + typeLength + vIntLength(typeLength), data);
-	}
-
-	// collections
-
-	else if (obj instanceof Map) {
-		const contents = [];
-		for (const [key, item] of Object.entries(obj)) {
-			contents.push([
-				tokenize(key, object_set),
-				tokenize(item, object_set)
-			]);
-		}
-
-		return createToken(TYPE.MAP, evaluateMapLength(contents), contents);
-	}
-	else if (obj instanceof Set) {
-		const contents = [];
-		for (const item of obj) {
-			contents.push(tokenize(item, object_set));
-		}
-
-		return createToken(TYPE.SET, evaluateArrayLength(contents), contents);
-	}
-	else if (isIterable(obj)) {
-		const contents = [];
-		for (const item of obj) {
-			contents.push(tokenize(item, object_set));
-		}
-
-		return createToken(TYPE.GENERIC_ARRAY, evaluateArrayLength(contents), contents);
-	}
-	else {
-		const contents = [];
-		for (const [key, item] of Object.entries(obj)) {
-			contents.push([ key, tokenize(item, object_set) ]);
-		}
-
-		return createToken(TYPE.GENERIC_OBJECT, evaluateObjectLength(contents), contents);
-	}
+	});
 }
+
+// collections
+
+define(Map, (obj, object_set) => {
+	const contents = [];
+	for (const [key, item] of Object.entries(obj)) {
+		contents.push([
+			tokenize(key, object_set),
+			tokenize(item, object_set)
+		]);
+	}
+
+	return createToken(TYPE.MAP, evaluateMapLength(contents), contents);
+});
+
+define(Set, (obj, object_set) => {
+	const contents = [];
+	for (const item of obj) {
+		contents.push(tokenize(item, object_set));
+	}
+
+	return createToken(TYPE.SET, evaluateArrayLength(contents), contents);
+});
+
+define(Array, tokenizeIterable);
+
+define(Object, (obj, object_set) => {
+
+	if (isIterable(obj))
+		return tokenizeIterable(obj, object_set);
+
+	const contents = [];
+	for (const [key, item] of Object.entries(obj)) {
+		contents.push([ key, tokenize(item, object_set) ]);
+	}
+
+	return createToken(TYPE.GENERIC_OBJECT, evaluateObjectLength(contents), contents);
+});
 
 function tokenize (obj, object_set) {
 	switch (typeof obj) {
@@ -382,13 +375,14 @@ function tokenize (obj, object_set) {
 			if (ref)
 				return ref;
 
-			return createToken(TYPE.STRING, obj.length, obj);
+			return createToken(TYPE.STRING, textLength(obj), obj);
 
 			break;
 		case "number":
 			// if an integer, try using LEB variable length uint encoding
 			if (Number.isInteger(obj) && obj < MAX_UINT) {
-				return createToken(obj >= 0 ? TYPE.VINT_POS : TYPE.VINT_NEG, vIntLength(obj), Math.abs(obj));
+				const abs = Math.abs(obj);
+				return createToken(obj >= 0 ? TYPE.VINT_POS : TYPE.VINT_NEG, vIntLength(abs), abs);
 			// fallback to double
 			} else {
 				return createToken(TYPE.FLOAT_64, 8, obj);
