@@ -1,7 +1,7 @@
 import * as TYPE from "./types.js";
 import { Reader } from "./Reader.js";
 
-export async function decode (buffer) {
+export function hydrate (buffer) {
 	const reader = new Reader(buffer);
 	const lookup = [];
 	return parseToken(reader, lookup);

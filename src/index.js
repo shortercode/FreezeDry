@@ -1,2 +1,2 @@
-export { encode } from "./encode.js";
-export { decode } from "./decode.js";
+export { dry } from "./encode.js";
+export { hydrate } from "./decode.js";
