@@ -1,7 +1,4 @@
-const MAX_UINT = 2 ** 32;
-const LOWER_BITMASK = 0b01111111;
-const HIGHER_BITMASK = 0b10000000;
-const ENCODER = new TextEncoder();
+import { MAX_UINT, LOWER_BITMASK, HIGHER_BITMASK, encodeText, textLength } from "./misc.js";
 
 export class Writer {
 	constructor (size)
@@ -54,12 +51,24 @@ export class Writer {
 
 	WriteText (str)
 	{
+		// NOTE this may not be correct for strings with multi byte characters
 		if (this.available < str.length)
 			throw new Error("Not enough buffer space available");
 
-		const view = ENCODER.encode(str);
+		const view = encodeText(str);
 
 		this.WriteBytes(view);
+	}
+
+	WriteTextAndLength (str)
+	{
+		const length = textLength(str);
+
+		if (this.available < length)
+			throw new Error("Not enough buffer space available");
+
+		this.WriteV(length);
+		this.WriteText(str);
 	}
 
 	WriteV (v)
@@ -76,7 +85,7 @@ export class Writer {
 			if (v != 0) /* more bytes to come */
 	    		byte |= HIGHER_BITMASK;
 			this.Write8(byte);
-  		}
+  	}
 	}
 
 	Write8 (v)

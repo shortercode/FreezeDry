@@ -1,7 +1,4 @@
-const MAX_UINT = 2 ** 32;
-const LOWER_BITMASK = 0b01111111;
-const HIGHER_BITMASK = 0b10000000;
-const DECODER = new TextDecoder();
+import { MAX_UINT, LOWER_BITMASK, HIGHER_BITMASK, decodeText } from "./misc.js";
 
 export class Reader {
 	constructor (typedArray)
@@ -49,7 +46,7 @@ export class Reader {
 	ReadText (length)
 	{
 		const view = this.ReadBytes(length, this.position);
-		return DECODER.decode(view);
+		return decodeText(view);
 	}
 
 	Peek8 ()
