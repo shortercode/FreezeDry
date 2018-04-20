@@ -2,13 +2,13 @@
 <html>
 	<head>
 		<script type="module">
-			import { encode, decode } from "../src/index.js";
+			import { dry, hydrate } from "../freezedry.mjs";
 
 			async function test (n) {
 				console.log("Input", n);
-				const e = await encode(n);
+				const e = await dry(n);
 				console.log("Encoded", e);
-				const d = await decode(e);
+				const d = await hydrate(e);
 				console.log("Decoded", d);
 			}
 
