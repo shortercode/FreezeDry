@@ -325,7 +325,7 @@ if (typeof Blob != "undefined") {
 
 define(Map, (obj, object_set) => {
 	const contents = [];
-	for (const [key, item] of Object.entries(obj)) {
+	for (const [key, item] of obj.entries()) {
 		contents.push([
 			tokenize(key, object_set),
 			tokenize(item, object_set)
